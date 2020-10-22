@@ -718,3 +718,68 @@ mysql> select deptno,ename from employe union select deptno,deptname from dept;
 11 rows in set (0.00 sec)
 ```
 
+
+### DCL语句
+
+DCL语句主要是DBA用来管理系统中的对象使用权限时使用。
+
+创建一个数据库用户wwh，具有对test1数据库中所有表的select/insert权限：
+```sql
+mysql> grant select,insert on test1.* to 'wwh'@'localhost' identified by '123';
+Query OK, 0 rows affected, 1 warning (0.03 sec)
+
+mysql> exit
+Bye
+
+root@VM-0-14-ubuntu:/home/ubuntu# mysql -u wwh -p
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 601
+Server version: 5.7.31-0ubuntu0.18.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use test1;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> insert into employe(ename,hiredate,sal,deptno) values('xiaoxu','2020-09-22',13000,3); 
+Query OK, 1 row affected (0.00 sec)
+
+```
+权限变更，将wwh用户的insert权限收回，只能对数据进行select操作：
+```sql
+mysql> revoke  insert on test1.* from 'wwh'@'localhost';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> exit
+Bye
+root@VM-0-14-ubuntu:/home/ubuntu# mysql -u wwh -p
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 603
+Server version: 5.7.31-0ubuntu0.18.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use test1;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> insert into employe(ename,hiredate,sal,deptno) values('xiaofei','2019-04-11',15000,5);
+ERROR 1142 (42000): INSERT command denied to user 'wwh'@'localhost' for table 'employe'
+```
