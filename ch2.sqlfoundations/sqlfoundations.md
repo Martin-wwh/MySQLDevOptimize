@@ -783,3 +783,171 @@ Database changed
 mysql> insert into employe(ename,hiredate,sal,deptno) values('xiaofei','2019-04-11',15000,5);
 ERROR 1142 (42000): INSERT command denied to user 'wwh'@'localhost' for table 'employe'
 ```
+
+
+## 帮助的使用
+
+### 按层次查看帮助
+用"? content"命令来显示所有可供查询的分类，如下：
+```sql
+mysql> ? contents;
+You asked for help about help category: "Contents"
+For more information, type 'help <item>', where <item> is one of the following
+categories:
+   Account Management
+   Administration
+   Compound Statements
+   Contents
+   Data Definition
+   Data Manipulation
+   Data Types
+   Functions
+   Geographic Features
+   Help Metadata
+   Language Structure
+   Plugins
+   Procedures
+   Storage Engines
+   Table Maintenance
+   Transactions
+   User-Defined Functions
+   Utility
+
+```
+对列出的分类，可以用"? 类别名称"的方式对内容做进一步查看。示例：
+```sql
+mysql> ?  Data Types
+You asked for help about help category: "Data Types"
+For more information, type 'help <item>', where <item> is one of the following
+topics:
+   AUTO_INCREMENT
+   BIGINT
+   BINARY
+   BIT
+   BLOB
+   BLOB DATA TYPE
+   BOOLEAN
+   CHAR
+   CHAR BYTE
+   DATE
+   DATETIME
+   DEC
+   DECIMAL
+   DOUBLE
+   DOUBLE PRECISION
+   ENUM
+   FLOAT
+   INT
+   INTEGER
+   LONGBLOB
+   LONGTEXT
+   MEDIUMBLOB
+   MEDIUMINT
+   MEDIUMTEXT
+   SET DATA TYPE
+   SMALLINT
+   TEXT
+   TIME
+   TIMESTAMP
+   TINYBLOB
+   TINYINT
+   TINYTEXT
+   VARBINARY
+   VARCHAR
+   YEAR DATA TYPE
+```
+
+### 快速查阅帮助
+在实际应用中，如果想要快速查阅某项语法时，可以使用关键字进行快速查询，示例：
+```sql
+mysql> ? show
+Name: 'SHOW'
+Description:
+SHOW has many forms that provide information about databases, tables,
+columns, or status information about the server. This section describes
+those following:
+
+SHOW {BINARY | MASTER} LOGS
+SHOW BINLOG EVENTS [IN 'log_name'] [FROM pos] [LIMIT [offset,] row_count]
+SHOW CHARACTER SET [like_or_where]
+SHOW COLLATION [like_or_where]
+SHOW [FULL] COLUMNS FROM tbl_name [FROM db_name] [like_or_where]
+SHOW CREATE DATABASE db_name
+SHOW CREATE EVENT event_name
+SHOW CREATE FUNCTION func_name
+SHOW CREATE PROCEDURE proc_name
+SHOW CREATE TABLE tbl_name
+SHOW CREATE TRIGGER trigger_name
+SHOW CREATE VIEW view_name
+SHOW DATABASES [like_or_where]
+SHOW ENGINE engine_name {STATUS | MUTEX}
+SHOW [STORAGE] ENGINES
+SHOW ERRORS [LIMIT [offset,] row_count]
+SHOW EVENTS
+SHOW FUNCTION CODE func_name
+SHOW FUNCTION STATUS [like_or_where]
+SHOW GRANTS FOR user
+SHOW INDEX FROM tbl_name [FROM db_name]
+SHOW MASTER STATUS
+SHOW OPEN TABLES [FROM db_name] [like_or_where]
+SHOW PLUGINS
+SHOW PROCEDURE CODE proc_name
+SHOW PROCEDURE STATUS [like_or_where]
+SHOW PRIVILEGES
+SHOW [FULL] PROCESSLIST
+SHOW PROFILE [types] [FOR QUERY n] [OFFSET n] [LIMIT n]
+SHOW PROFILES
+SHOW RELAYLOG EVENTS [IN 'log_name'] [FROM pos] [LIMIT [offset,] row_count]
+SHOW SLAVE HOSTS
+SHOW SLAVE STATUS [FOR CHANNEL channel]
+SHOW [GLOBAL | SESSION] STATUS [like_or_where]
+SHOW TABLE STATUS [FROM db_name] [like_or_where]
+SHOW [FULL] TABLES [FROM db_name] [like_or_where]
+SHOW TRIGGERS [FROM db_name] [like_or_where]
+SHOW [GLOBAL | SESSION] VARIABLES [like_or_where]
+SHOW WARNINGS [LIMIT [offset,] row_count]
+
+like_or_where:
+    LIKE 'pattern'
+  | WHERE expr
+
+If the syntax for a given SHOW statement includes a LIKE 'pattern'
+part, 'pattern' is a string that can contain the SQL % and _ wildcard
+characters. The pattern is useful for restricting statement output to
+matching values.
+
+Several SHOW statements also accept a WHERE clause that provides more
+flexibility in specifying which rows to display. See
+https://dev.mysql.com/doc/refman/5.7/en/extended-show.html.
+
+URL: https://dev.mysql.com/doc/refman/5.7/en/show.html
+
+```
+
+## 查询元数据信息
+考虑如下场景：
+1. 删除数据库test1下 所有前缀为tmp的表
+2. 将数据库test1下所有存储引擎为myisam的表改为innodb
+
+对于此类需求，在mysql5.0之前只能通过show tables、show create table或者show table status这样的命令来得到指定数据库下的表名和存储引擎，但这些命令显示内容有限且不适用于字符串批量编辑。
+mysql5.0之后提供了数据库information_schema，用来记录MySQL中的元数据信息。
+
+元数据是指数据的数据，如表名 列名 列类型 索引名等表的各种属性名称。这个数据库很特殊，时一个虚拟数据库，物理上不存在相关的目录和文件；库里show tables显示的各种表全部是视图。
+对于上面的两个需求，可以通过下面两个简单的命令获取到想要的sql语句：
+```sql
+mysql> use information_schema;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> select concat('drop table test1.',table_name,';') from tables  where table_schema='test1' and table_name like  'emp%';
++--------------------------------------------+
+| concat('drop table test1.',table_name,';') |
++--------------------------------------------+
+| drop table test1.employe;                  |
++--------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> select concat('alter table test1.', table_name, ' engine=innodb;) from tables where  table_schema='test1' and engine='MyISAM';
+
+```
