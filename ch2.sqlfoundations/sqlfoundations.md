@@ -695,7 +695,7 @@ mysql> select deptno from employe union select deptno from dept;
 +--------+
 5 rows in set (0.00 sec)
 ```
-**UNION 内部的 SELECT 语句必须拥有相同数量的列。列也必须拥有相似的数据类型。同时，每条 SELECT 语句中的列的顺序必须相同。**
+**注意:UNION 内部的 SELECT 语句必须拥有相同数量的列。列也必须拥有相似的数据类型。同时，每条 SELECT 语句中的列的顺序必须相同。**
 
 示例：
 ```sql
