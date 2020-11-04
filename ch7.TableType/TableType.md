@@ -51,8 +51,23 @@ mysql定义表字段的字符集的语法：
 ```sql
 alter table book modify name varchar(20) character set utf8; 
 ALTER TABLE tbl_name CHANGE c_name c_name CHARACTER SET character_name [COLLATE ...];
+# 修改存储引擎
+alter table tbl_name engine='engine_name';
 
 ``` 
+
+** 问题：MyISAM与InnoDB的区别有哪些？**
+** 
+1. InnoDB支持事务，而myisam不支持事务，对于InnoDB每条sql语句都默认封装成事务，自动提交，这样会影响速度，最好把多条sql组成一个事务进行提交。
+2. InnoDB支持外键，而myisam不支持。
+3. InnoDB是用聚集索引，使用BTree做索引结构，数据文件和索引文件在一起，同时必须有主键，通过主键索引效率高。而myisam使用非聚集索引，也是BTree做索引结构，但是数据文件和索引文件时分离的，索引保存的是数据文件的指针。
+4. InnoDB不保存表的具体行数，执行select count(*) from table_name时需要全表扫描一次；而myisam使用一个变量保存这个值，因此执行这样的语句速度很快(前提是不能附加查询条件)。
+5. InnoDB不支持全文索引，而myisam支持。
+6. MyISAM表格可以被压缩后进行查询操作
+7. InnoDB支持表、行(默认)级锁，而MyISAM支持表级锁
+8、InnoDB表必须有唯一索引（如主键）（用户没有指定的话会自己找/生产一个隐藏列Row_id来充当默认主键），而Myisam可以没有
+9、Innodb存储文件有frm、ibd，而Myisam是frm、MYD、MYI
+
 
 # 索引的设计与使用
 
@@ -128,8 +143,34 @@ myisam存储引擎只支持表级锁。
 ### mysql表级锁的锁模式
 表共享读锁和表独占写锁
 如下表所示：
-![avatar](./table_lock.png)
+![avatar](table_lock.png)
 
 由上表可知，对myisam表的读操作，不会阻塞对其他用户对同一表的读请求，但是阻塞对同一表的写请求；对myisam表的写操作，则会阻塞其他用户对同一表的读和写请求；myisam表的读操作和写操作之间，以及写操作之间是串行的！
+myisam表的读操作与写操作之间，以及写操作之间是串行的。当一个线程获取对一个表的写锁，只有持有锁的线程才可以对表进行更新操作。其他线程的读写操作都会等待，直到锁释放。
 
+myisam存储引擎在执行查询(SELECT)之前，会自动给涉及的所有表加读锁，在执行更新操作之前，会自动给涉及的所有表加写锁，这个过程不需要用户干预。
+
+** 注意:在用lock tables给表显式加锁，必须同时取得所有涉及表的锁，并且mysql不支持锁升级。即，执行lock tables后，只能访问显式加锁的这些表，不能访问未加锁的表；如果是读锁，只能执行查询，不能更新。在自动加锁的情况下，也是如此。 **
+
+当用lock tables时，不仅需要一次锁定所有需要的表，而且需要对同一个表在sql语句中出现的所有别名也进行锁定，示例：
+```sql
+lock table actor as a read,actor as b read;
+select a.first_name,a.last_name,b.first_name,b.last_name from actor a, actor b where a.first_name=b.first_name and a.first_name='Martin' and a.last_name='Tom' and a.last_name<> b.last_name;
+
+```
+
+### 并发插入（Concurrent Inserts）
+myisam表的读和写是串行的，但这是就总体而言。在一定条件下，myisam也支持插入和查询操作的并发进行。
+myisam有一个系统变量concurrent_insert,专门用来控制并发插入的行为，值分别为0，1和2.
+1. 当concurrent_insert为0时，不允许并发插入
+2. 当concurrent_insert为1时，如果myisam表中没有空洞（表的中间没有删除的行），myisam表运行在一个进程读表时，另一个进程从表尾插入记录。这是默认设置
+3. 当concurrent_insert为2时，无论myisam表中是否有空洞，都允许在表尾进行并发插入记录。
+
+### myisam的锁调度
+
+myisam的读锁和写锁是互斥的，读写操作是串行的。如果有两个进程同时对同一张表请求，其中一张表请求读锁，另一张表请求写锁，那么写进程先获得锁。即使读请求先到达锁队列，写请求后到，写锁也会插入到读锁之前。
+这种myisam的调度行为可以通过设置参数来调节：
+1. 指定启动参数low-priority-updates，使myisam引擎默认给与读请求优先的权利
+2. 通过执行命令set low_priority_update=1，使得该连接发出的更新请求优先级降低
+3. 通过指定insert update delete语句的low_priority属性，降低该语句优先级。
 
